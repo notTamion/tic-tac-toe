@@ -10,7 +10,7 @@ use ratatui::widgets::canvas::{Canvas, Circle, Line, Rectangle};
 use ratatui::widgets::{Clear, List, ListState, Paragraph};
 use crate::action::Action;
 use crate::components::Component;
-use crate::components::game::Square::Unoccupied;
+use crate::components::game::Square::{Draw, Unoccupied};
 use crate::components::game_selection::GameSelection;
 
 pub struct Game {
@@ -28,6 +28,7 @@ enum Square {
     Circle,
     X,
     Unoccupied,
+    Draw,
 }
 
 #[async_trait]
@@ -40,10 +41,8 @@ impl Component for Game {
         if self.has_menu_open {
             match key_event.code {
                 KeyCode::Esc => {
-                    if self.winner.0 == Unoccupied {
-                        self.has_menu_open = false;
-                        self.menu_state = ListState::default().with_selected(Some(0));
-                    }
+                    self.has_menu_open = false;
+                    self.menu_state = ListState::default().with_selected(Some(0));
                 }
                 Char('j') | KeyCode::Down => self.menu_state.select_next(),
                 Char('k') | KeyCode::Up => self.menu_state.select_previous(),
@@ -80,67 +79,46 @@ impl Component for Game {
             }
 
             return Ok(Action::None);
-        }
+        } else if self.winner.0 == Unoccupied {
+            match key_event.code {
+                Char('k') | KeyCode::Up => {
+                    if self.selected.1 > 0.0 {
+                        self.selected.1 -= 1.0;
+                    }
+                }
+                Char('j') | KeyCode::Down => {
+                    if self.selected.1 < 2.0 {
+                        self.selected.1 += 1.0;
+                    }
+                }
+                Char('l') | KeyCode::Right => {
+                    if self.selected.0 < 2.0 {
+                        self.selected.0 += 1.0;
+                    }
+                }
+                Char('h') | KeyCode::Left => {
+                    if self.selected.0 > 0.0 {
+                        self.selected.0 -= 1.0;
+                    }
+                }
+                KeyCode::Esc => self.has_menu_open = true,
+                KeyCode::Enter => {
+                    if self.board[self.selected.0 as usize][self.selected.1 as usize] != Unoccupied {
+                        return Ok(Action::None);
+                    }
 
-        match key_event.code {
-            Char('q') => return Ok(Action::Quit),
-            Char('k') | KeyCode::Up => {
-                if self.selected.1 > 0.0 {
-                    self.selected.1 -= 1.0;
-                }
-            }
-            Char('j') | KeyCode::Down => {
-                if self.selected.1 < 2.0 {
-                    self.selected.1 += 1.0;
-                }
-            }
-            Char('l') | KeyCode::Right => {
-                if self.selected.0 < 2.0 {
-                    self.selected.0 += 1.0;
-                }
-            }
-            Char('h') | KeyCode::Left => {
-                if self.selected.0 > 0.0 {
-                    self.selected.0 -= 1.0;
-                }
-            }
-            KeyCode::Esc => self.has_menu_open = true,
-            KeyCode::Enter => {
-                if self.board[self.selected.0 as usize][self.selected.1 as usize] != Unoccupied {
-                    return Ok(Action::None);
-                }
-
-                for x in if self.selected.0 == 0.0 { 0 } else { -1 }..if self.selected.0 == 2.0 { 1 } else { 2 } {
-                    for y in if self.selected.1 == 0.0 { 0 } else { -1 }..if self.selected.1 == 2.0 { 1 } else { 2 } {
-                        let x = x as f64;
-                        let y = y as f64;
-                        if x == 0.0 && y == 0.0 {
-                            continue;
-                        }
-                        let ax = self.selected.0 + x;
-                        let ay = self.selected.1 + y;
-                        if self.turn == self.board[ax as usize][ay as usize] {
-                            let mut ax2 = ax+x;
-                            let mut ay2 = ay+y;
-                            if ax2 <= 2.0 && ax2 >= 0.0 && ay2 <= 2.0 && ay2 >= 0.0 {
-                                if self.turn == self.board[ax2 as usize][ay2 as usize] {
-                                    if self.turn == Square::X {
-                                        self.scores.0 += 1;
-                                    } else {
-                                        self.scores.1 += 1;
-                                    }
-                                    self.has_menu_open = true;
-                                    self.winner = (if self.turn == Square::X { Square::X } else { Square::Circle },
-                                                   -30.0*x-66.0 + 66.0 * self.selected.0,
-                                                   30.0*y+66.0 - 66.0 * self.selected.1,
-                                                   30.0*x-66.0 + 66.0 * ax2,
-                                                   -30.0*y+66.0 - 66.0 * ay2,
-                                    );
-                                    break;
-                                }
-                            } else {
-                                ax2 = self.selected.0 - x;
-                                ay2 = self.selected.1 - y;
+                    for x in if self.selected.0 == 0.0 { 0 } else { -1 }..if self.selected.0 == 2.0 { 1 } else { 2 } {
+                        for y in if self.selected.1 == 0.0 { 0 } else { -1 }..if self.selected.1 == 2.0 { 1 } else { 2 } {
+                            let x = x as f64;
+                            let y = y as f64;
+                            if x == 0.0 && y == 0.0 {
+                                continue;
+                            }
+                            let ax = self.selected.0 + x;
+                            let ay = self.selected.1 + y;
+                            if self.turn == self.board[ax as usize][ay as usize] {
+                                let mut ax2 = ax+x;
+                                let mut ay2 = ay+y;
                                 if ax2 <= 2.0 && ax2 >= 0.0 && ay2 <= 2.0 && ay2 >= 0.0 {
                                     if self.turn == self.board[ax2 as usize][ay2 as usize] {
                                         if self.turn == Square::X {
@@ -150,33 +128,64 @@ impl Component for Game {
                                         }
                                         self.has_menu_open = true;
                                         self.winner = (if self.turn == Square::X { Square::X } else { Square::Circle },
-                                                       -30.0*x-66.0 + 66.0 * ax2,
-                                                       30.0*y+66.0 - 66.0 * ay2,
-                                                       30.0*x-66.0 + 66.0 * ax,
-                                                       -30.0*y+66.0 - 66.0 * ay,
+                                                       -30.0*x-66.0 + 66.0 * self.selected.0,
+                                                       30.0*y+66.0 - 66.0 * self.selected.1,
+                                                       30.0*x-66.0 + 66.0 * ax2,
+                                                       -30.0*y+66.0 - 66.0 * ay2,
                                         );
+                                        break;
+                                    }
+                                } else {
+                                    ax2 = self.selected.0 - x;
+                                    ay2 = self.selected.1 - y;
+                                    if ax2 <= 2.0 && ax2 >= 0.0 && ay2 <= 2.0 && ay2 >= 0.0 {
+                                        if self.turn == self.board[ax2 as usize][ay2 as usize] {
+                                            if self.turn == Square::X {
+                                                self.scores.0 += 1;
+                                            } else {
+                                                self.scores.1 += 1;
+                                            }
+                                            self.has_menu_open = true;
+                                            self.winner = (if self.turn == Square::X { Square::X } else { Square::Circle },
+                                                           -30.0*x-66.0 + 66.0 * ax2,
+                                                           30.0*y+66.0 - 66.0 * ay2,
+                                                           30.0*x-66.0 + 66.0 * ax,
+                                                           -30.0*y+66.0 - 66.0 * ay,
+                                            );
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                match self.turn {
-                    Square::X => {
-                        self.board[self.selected.0 as usize][self.selected.1 as usize] = Square::X;
-                        self.turn = Square::Circle;
+                    match self.turn {
+                        Square::X => {
+                            self.board[self.selected.0 as usize][self.selected.1 as usize] = Square::X;
+                            self.turn = Square::Circle;
+                        }
+                        Square::Circle => {
+                            self.board[self.selected.0 as usize][self.selected.1 as usize] = Square::Circle;
+                            self.turn = Square::X
+                        }
+                        _ => ()
                     }
-                    Square::Circle => {
-                        self.board[self.selected.0 as usize][self.selected.1 as usize] = Square::Circle;
-                        self.turn = Square::X
+                    self.selected = (1.0, 1.0);
+                    if self.winner.0 == Unoccupied {
+                        let mut cancel = true;
+                        self.board.iter().for_each(|s| s.iter().for_each(|slot| {if slot == &Unoccupied {cancel = false}}));
+                        if cancel {
+                            self.winner.0 = Draw;
+                            self.has_menu_open = true;
+                        }
                     }
-                    _ => ()
                 }
-                self.selected = (1.0, 1.0);
+                _ => ()
             }
-            _ => ()
+        } else {
+            self.has_menu_open = true;
         }
+
         Ok(Action::None)
     }
 
@@ -230,7 +239,7 @@ impl Component for Game {
                     y2: -33.0,
                     color: Color::White,
                 });
-                if self.winner.0 == Unoccupied {
+                if self.winner.0 == Unoccupied || self.winner.0 == Draw {
                     ctx.draw(&Rectangle {
                         x: -95.0 + 66.0 * self.selected.0,
                         y: 37.0 - 66.0 * self.selected.1,
@@ -272,7 +281,7 @@ impl Component for Game {
                         }
                     }
                 }
-                if self.winner.0 != Unoccupied {
+                if self.winner.0 != Unoccupied && self.winner.0 != Draw {
                     ctx.draw(&Line {
                         x1: self.winner.1,
                         y1: self.winner.2,
@@ -293,7 +302,11 @@ impl Component for Game {
             }
             text = Text::from(ratatui::prelude::Line::from(vec![player1, Span::from(" | "), player2]));
         } else {
-            text = Text::from(if self.winner.0 == Square::X { "Player1 wins!" } else { "Player2 wins!" }).style(Style::new().add_modifier(Modifier::REVERSED));
+            if self.winner.0 == Draw {
+                text = Text::from("Draw!").style(Style::new().add_modifier(Modifier::REVERSED));
+            } else {
+                text = Text::from(if self.winner.0 == Square::X { "Player1 wins!" } else { "Player2 wins!" }).style(Style::new().add_modifier(Modifier::REVERSED));
+            }
         }
         frame.render_widget(Paragraph::new(text).centered(), layout[1]);
         frame.render_widget(canvas, layout[3]);

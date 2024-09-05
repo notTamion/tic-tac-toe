@@ -27,6 +27,7 @@ impl Component for GameSelection {
             KeyCode::Enter => {
                     match self.list_state.selected().unwrap() {
                         0 => return Ok(Action::ChangeComponent(Box::new(Game::new()))),
+                        1 => return Ok(Action::Quit),
                         _ => ()
                     }
             }
@@ -36,7 +37,7 @@ impl Component for GameSelection {
     }
 
     fn render(&mut self, frame: &mut Frame, area: Rect) {
-        let game_modes = ["Local"];
+        let game_modes = ["Local", "Quit"];
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![
