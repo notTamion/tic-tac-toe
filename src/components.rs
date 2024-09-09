@@ -8,7 +8,7 @@ use ratatui::layout::Rect;
 use crate::action::Action;
 
 pub mod game_selection;
-mod game;
+mod local_game;
 
 #[async_trait]
 pub trait Component {

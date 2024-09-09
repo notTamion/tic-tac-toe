@@ -8,7 +8,7 @@ use color_eyre::Result;
 use ratatui::crossterm::event::KeyCode::Char;
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{List, ListState, Paragraph};
-use crate::components::game::Game;
+use crate::components::local_game::LocalGame;
 
 pub struct GameSelection {
     list_state: ListState,
@@ -26,7 +26,7 @@ impl Component for GameSelection {
             Char('k') | KeyCode::Up => self.list_state.select_previous(),
             KeyCode::Enter => {
                     match self.list_state.selected().unwrap() {
-                        0 => return Ok(Action::ChangeComponent(Box::new(Game::new()))),
+                        0 => return Ok(Action::ChangeComponent(Box::new(LocalGame::new()))),
                         1 => return Ok(Action::Quit),
                         _ => ()
                     }

@@ -10,29 +10,19 @@ use ratatui::widgets::canvas::{Canvas, Circle, Line, Rectangle};
 use ratatui::widgets::{Clear, List, ListState, Paragraph};
 use crate::action::Action;
 use crate::components::Component;
-use crate::components::game::Square::{Draw, Unoccupied};
+use crate::components::local_game::Square::Draw;
 use crate::components::game_selection::GameSelection;
+use crate::game::{Game, Square};
 
-pub struct Game {
-    board: [[Square; 3]; 3],
+pub struct LocalGame {
+    game: Game,
     selected: (f64, f64),
-    turn: Square,
-    winner: (Square, f64, f64, f64, f64),
     menu_state: ListState,
     has_menu_open: bool,
-    scores: (u8, u8),
-}
-
-#[derive(PartialEq, Eq)]
-enum Square {
-    Circle,
-    X,
-    Unoccupied,
-    Draw,
 }
 
 #[async_trait]
-impl Component for Game {
+impl Component for LocalGame {
     async fn handle_key_event(&mut self, key_event: KeyEvent) -> color_eyre::Result<Action> {
         if key_event.kind != KeyEventKind::Press {
             return Ok(Action::None);
@@ -53,21 +43,16 @@ impl Component for Game {
                             self.menu_state = ListState::default().with_selected(Some(0));
                         },
                         1 => {
-                            self.board = [[Unoccupied, Unoccupied, Unoccupied], [Unoccupied, Unoccupied, Unoccupied], [Unoccupied, Unoccupied, Unoccupied]];
-                            self.winner = (Unoccupied, 0.0, 0.0, 0.0, 0.0);
-                            self.turn = Square::X;
+                            self.game.rematch();
                             self.selected = (1.0, 1.0);
                             self.menu_state = ListState::default().with_selected(Some(0));
                             self.has_menu_open = false;
                         }
                         2 => {
-                            self.board = [[Unoccupied, Unoccupied, Unoccupied], [Unoccupied, Unoccupied, Unoccupied], [Unoccupied, Unoccupied, Unoccupied]];
-                            self.winner = (Unoccupied, 0.0, 0.0, 0.0, 0.0);
-                            self.turn = Square::X;
+                            self.game.restart();
                             self.selected = (1.0, 1.0);
                             self.menu_state = ListState::default().with_selected(Some(0));
                             self.has_menu_open = false;
-                            self.scores = (0, 0);
                         }
                         3 => return Ok(Action::ChangeComponent(Box::new(GameSelection::new()))),
                         4 => return Ok(Action::Quit),
@@ -79,7 +64,7 @@ impl Component for Game {
             }
 
             return Ok(Action::None);
-        } else if self.winner.0 == Unoccupied {
+        } else if self.game.winner.0 == Square::None {
             match key_event.code {
                 Char('k') | KeyCode::Up => {
                     if self.selected.1 > 0.0 {
@@ -103,81 +88,9 @@ impl Component for Game {
                 }
                 KeyCode::Esc => self.has_menu_open = true,
                 KeyCode::Enter => {
-                    if self.board[self.selected.0 as usize][self.selected.1 as usize] != Unoccupied {
-                        return Ok(Action::None);
-                    }
-
-                    for x in if self.selected.0 == 0.0 { 0 } else { -1 }..if self.selected.0 == 2.0 { 1 } else { 2 } {
-                        for y in if self.selected.1 == 0.0 { 0 } else { -1 }..if self.selected.1 == 2.0 { 1 } else { 2 } {
-                            let x = x as f64;
-                            let y = y as f64;
-                            if x == 0.0 && y == 0.0 {
-                                continue;
-                            }
-                            let ax = self.selected.0 + x;
-                            let ay = self.selected.1 + y;
-                            if self.turn == self.board[ax as usize][ay as usize] {
-                                let mut ax2 = ax+x;
-                                let mut ay2 = ay+y;
-                                if ax2 <= 2.0 && ax2 >= 0.0 && ay2 <= 2.0 && ay2 >= 0.0 {
-                                    if self.turn == self.board[ax2 as usize][ay2 as usize] {
-                                        if self.turn == Square::X {
-                                            self.scores.0 += 1;
-                                        } else {
-                                            self.scores.1 += 1;
-                                        }
-                                        self.has_menu_open = true;
-                                        self.winner = (if self.turn == Square::X { Square::X } else { Square::Circle },
-                                                       -30.0*x-66.0 + 66.0 * self.selected.0,
-                                                       30.0*y+66.0 - 66.0 * self.selected.1,
-                                                       30.0*x-66.0 + 66.0 * ax2,
-                                                       -30.0*y+66.0 - 66.0 * ay2,
-                                        );
-                                        break;
-                                    }
-                                } else {
-                                    ax2 = self.selected.0 - x;
-                                    ay2 = self.selected.1 - y;
-                                    if ax2 <= 2.0 && ax2 >= 0.0 && ay2 <= 2.0 && ay2 >= 0.0 {
-                                        if self.turn == self.board[ax2 as usize][ay2 as usize] {
-                                            if self.turn == Square::X {
-                                                self.scores.0 += 1;
-                                            } else {
-                                                self.scores.1 += 1;
-                                            }
-                                            self.has_menu_open = true;
-                                            self.winner = (if self.turn == Square::X { Square::X } else { Square::Circle },
-                                                           -30.0*x-66.0 + 66.0 * ax2,
-                                                           30.0*y+66.0 - 66.0 * ay2,
-                                                           30.0*x-66.0 + 66.0 * ax,
-                                                           -30.0*y+66.0 - 66.0 * ay,
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    match self.turn {
-                        Square::X => {
-                            self.board[self.selected.0 as usize][self.selected.1 as usize] = Square::X;
-                            self.turn = Square::Circle;
-                        }
-                        Square::Circle => {
-                            self.board[self.selected.0 as usize][self.selected.1 as usize] = Square::Circle;
-                            self.turn = Square::X
-                        }
-                        _ => ()
-                    }
-                    self.selected = (1.0, 1.0);
-                    if self.winner.0 == Unoccupied {
-                        let mut cancel = true;
-                        self.board.iter().for_each(|s| s.iter().for_each(|slot| {if slot == &Unoccupied {cancel = false}}));
-                        if cancel {
-                            self.winner.0 = Draw;
-                            self.has_menu_open = true;
-                        }
+                    self.game.hit(self.selected.0, self.selected.1);
+                    if self.game.winner.0 != Square::None {
+                        self.has_menu_open = true;
                     }
                 }
                 _ => ()
@@ -239,7 +152,7 @@ impl Component for Game {
                     y2: -33.0,
                     color: Color::White,
                 });
-                if self.winner.0 == Unoccupied || self.winner.0 == Draw {
+                if self.game.winner.0 == Square::None || self.game.winner.0 == Draw {
                     ctx.draw(&Rectangle {
                         x: -95.0 + 66.0 * self.selected.0,
                         y: 37.0 - 66.0 * self.selected.1,
@@ -252,7 +165,7 @@ impl Component for Game {
                     for y in 0..3 {
                         let x = x as f64;
                         let y = y as f64;
-                        match self.board.get(x as usize).unwrap().get(y as usize).unwrap() {
+                        match self.game.board.get(x as usize).unwrap().get(y as usize).unwrap() {
                             Square::Circle => {
                                 ctx.draw(&Circle {
                                     x: -66.0 + 66.0 * x,
@@ -281,31 +194,31 @@ impl Component for Game {
                         }
                     }
                 }
-                if self.winner.0 != Unoccupied && self.winner.0 != Draw {
+                if self.game.winner.0 != Square::None && self.game.winner.0 != Draw {
                     ctx.draw(&Line {
-                        x1: self.winner.1,
-                        y1: self.winner.2,
-                        x2: self.winner.3,
-                        y2: self.winner.4,
+                        x1: self.game.winner.1,
+                        y1: self.game.winner.2,
+                        x2: self.game.winner.3,
+                        y2: self.game.winner.4,
                         color: Color::Red,
                     })
                 }
             });
         let text;
-        if self.winner.0 == Unoccupied {
-            let mut player1 = Span::from(format!("{} Player1", self.scores.0));
-            let mut player2 = Span::from(format!("Player2 {}", self.scores.1));
-            if self.turn == Square::X {
+        if self.game.winner.0 == Square::None {
+            let mut player1 = Span::from(format!("{} Player1", self.game.scores.0));
+            let mut player2 = Span::from(format!("Player2 {}", self.game.scores.1));
+            if self.game.turn == Square::X {
                 player1 = player1.style(Style::new().add_modifier(Modifier::REVERSED));
             } else {
                 player2 = player2.style(Style::new().add_modifier(Modifier::REVERSED));
             }
             text = Text::from(ratatui::prelude::Line::from(vec![player1, Span::from(" | "), player2]));
         } else {
-            if self.winner.0 == Draw {
+            if self.game.winner.0 == Draw {
                 text = Text::from("Draw!").style(Style::new().add_modifier(Modifier::REVERSED));
             } else {
-                text = Text::from(if self.winner.0 == Square::X { "Player1 wins!" } else { "Player2 wins!" }).style(Style::new().add_modifier(Modifier::REVERSED));
+                text = Text::from(if self.game.winner.0 == Square::X { "Player1 wins!" } else { "Player2 wins!" }).style(Style::new().add_modifier(Modifier::REVERSED));
             }
         }
         frame.render_widget(Paragraph::new(text).centered(), layout[1]);
@@ -328,8 +241,8 @@ impl Component for Game {
     }
 }
 
-impl Game {
+impl LocalGame {
     pub fn new() -> Self {
-        Game { scores: (0, 0), has_menu_open: false, menu_state: ListState::default().with_selected(Some(0)), winner: (Unoccupied, 0.0, 0.0, 0.0, 0.0), turn: Square::X, selected: (1.0, 1.0), board: [[Unoccupied, Unoccupied, Unoccupied], [Unoccupied, Unoccupied, Unoccupied], [Unoccupied, Unoccupied, Unoccupied]] }
+        LocalGame { game: Game::new(), has_menu_open: false, menu_state: ListState::default().with_selected(Some(0)), selected: (1.0, 1.0) }
     }
 }
