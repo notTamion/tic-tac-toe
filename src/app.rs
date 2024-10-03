@@ -7,7 +7,7 @@ use ratatui::crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlter
 use ratatui::{Terminal};
 use crate::action::Action;
 use crate::components::Component;
-use crate::components::game_selection::GameSelection;
+use crate::components::main_menu::MainMenu;
 
 type Tui = Terminal<CrosstermBackend<Stdout>>;
 
@@ -21,7 +21,7 @@ impl App {
         stdout().execute(EnterAlternateScreen)?;
         enable_raw_mode()?;
         Self::set_panic_hook();
-        let mut app = App { tui: Terminal::new(CrosstermBackend::new(stdout()))?, component: Box::new(GameSelection::new()) };
+        let mut app = App { tui: Terminal::new(CrosstermBackend::new(stdout()))?, component: Box::new(MainMenu::new()) };
         app.run().await
     }
 

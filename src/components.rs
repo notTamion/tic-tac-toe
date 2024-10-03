@@ -7,8 +7,12 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use crate::action::Action;
 
-pub mod game_selection;
-mod local_game;
+pub mod main_menu;
+mod normal_local_game;
+mod game_selection;
+mod super_local_game;
+mod game;
+mod super_game;
 
 #[async_trait]
 pub trait Component {

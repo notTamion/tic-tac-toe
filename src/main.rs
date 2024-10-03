@@ -1,8 +1,6 @@
 mod app;
 mod components;
 mod action;
-mod game;
-
 use color_eyre::Result;
 use crate::app::App;
 
