@@ -7,7 +7,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{List, ListState, Paragraph};
 use crate::action::Action;
 use crate::components::Component;
-use crate::components::normal_local_game::NormalLocalGame;
+use crate::components::local_game::LocalGame;
 use crate::components::main_menu::MainMenu;
 use crate::components::super_local_game::SuperLocalGame;
 
@@ -27,7 +27,7 @@ impl Component for GameSelection {
             Char('k') | KeyCode::Up => self.list_state.select_previous(),
             KeyCode::Enter => {
                 match self.list_state.selected().unwrap() {
-                    0 => return Ok(Action::ChangeComponent(Box::new(NormalLocalGame::new()))),
+                    0 => return Ok(Action::ChangeComponent(Box::new(LocalGame::new()))),
                     1 => return Ok(Action::ChangeComponent(Box::new(SuperLocalGame::new()))),
                     2 => return Ok(Action::ChangeComponent(Box::new(MainMenu::new()))),
                     _ => ()

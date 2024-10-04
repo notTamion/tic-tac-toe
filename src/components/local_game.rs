@@ -13,14 +13,14 @@ use crate::components::game::{Game, Square};
 use crate::components::game::Square::Draw;
 use crate::components::main_menu::MainMenu;
 
-pub struct NormalLocalGame {
+pub struct LocalGame {
     game: Game,
     menu_state: ListState,
     has_menu_open: bool,
 }
 
 #[async_trait]
-impl Component for NormalLocalGame {
+impl Component for LocalGame {
     async fn handle_key_event(&mut self, key_event: KeyEvent) -> color_eyre::Result<Action> {
         if key_event.kind != KeyEventKind::Press {
             return Ok(Action::None);
@@ -37,20 +37,15 @@ impl Component for NormalLocalGame {
                 KeyCode::Enter => {
                     match self.menu_state.selected().unwrap() {
                         0 => {
-                            self.has_menu_open = false;
-                            self.menu_state = ListState::default().with_selected(Some(0));
+                            self.reset_menu();
                         },
                         1 => {
                             self.game.rematch();
-                            self.game.selected = (1.0, 1.0);
-                            self.menu_state = ListState::default().with_selected(Some(0));
-                            self.has_menu_open = false;
+                            self.reset_menu();
                         }
                         2 => {
                             self.game.restart();
-                            self.game.selected = (1.0, 1.0);
-                            self.menu_state = ListState::default().with_selected(Some(0));
-                            self.has_menu_open = false;
+                            self.reset_menu();
                         }
                         3 => return Ok(Action::ChangeComponent(Box::new(MainMenu::new()))),
                         4 => return Ok(Action::Quit),
@@ -133,8 +128,13 @@ impl Component for NormalLocalGame {
     }
 }
 
-impl NormalLocalGame {
+impl LocalGame {
     pub fn new() -> Self {
-        NormalLocalGame { game: Game::new(), has_menu_open: false, menu_state: ListState::default().with_selected(Some(0)) }
+        LocalGame { game: Game::new(), has_menu_open: false, menu_state: ListState::default().with_selected(Some(0)) }
+    }
+
+    fn reset_menu(&mut self) {
+        self.has_menu_open = false;
+        self.menu_state.select(Some(0));
     }
 }

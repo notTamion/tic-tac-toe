@@ -19,26 +19,10 @@ impl Component for SuperGame {
     async fn handle_key_event(&mut self, key_event: KeyEvent) -> color_eyre::Result<Action> {
         if self.selecting_game {
             match key_event.code {
-                Char('k') | KeyCode::Up => {
-                    if self.managing_game.selected.1 > 0.0 {
-                        self.managing_game.selected.1 -= 1.0;
-                    }
-                }
-                Char('j') | KeyCode::Down => {
-                    if self.managing_game.selected.1 < 2.0 {
-                        self.managing_game.selected.1 += 1.0;
-                    }
-                }
-                Char('l') | KeyCode::Right => {
-                    if self.managing_game.selected.0 < 2.0 {
-                        self.managing_game.selected.0 += 1.0;
-                    }
-                }
-                Char('h') | KeyCode::Left => {
-                    if self.managing_game.selected.0 > 0.0 {
-                        self.managing_game.selected.0 -= 1.0;
-                    }
-                }
+                Char('k') | KeyCode::Up => self.managing_game.selected.1 = (self.managing_game.selected.1 + 1.0).min(2.0),
+                Char('j') | KeyCode::Down => self.managing_game.selected.1 = (self.managing_game.selected.1 - 1.0).max(0.0),
+                Char('l') | KeyCode::Right => self.managing_game.selected.0 = (self.managing_game.selected.0 + 1.0).min(2.0),
+                Char('h') | KeyCode::Left => self.managing_game.selected.0 = (self.managing_game.selected.0 - 1.0).max(0.0),
                 KeyCode::Enter => {
                     self.selecting_game = false;
                     self.managing_game.show_selector = false;

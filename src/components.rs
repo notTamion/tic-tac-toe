@@ -8,7 +8,7 @@ use ratatui::layout::Rect;
 use crate::action::Action;
 
 pub mod main_menu;
-mod normal_local_game;
+mod local_game;
 mod game_selection;
 mod super_local_game;
 mod game;
