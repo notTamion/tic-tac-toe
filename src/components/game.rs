@@ -10,6 +10,7 @@ use crate::action::Action;
 use crate::components::Component;
 use crate::components::game::Square::{Draw, X};
 
+#[derive(Clone)]
 pub struct Game {
     pub selected: (f64, f64),
     pub board: Vec<Vec<Square>>,
@@ -108,7 +109,7 @@ impl Component for Game {
 
 impl Game {
     pub fn new() -> Self {
-        Game{ selected: (1.0, 1.0), board: vec![vec![Square::None; 8]; 8], scores: (0, 0), winner: (Square::None, 0.0, 0.0, 0.0, 0.0), turn: X, line_color: Color::White, show_selector: true }
+        Game{ selected: (1.0, 1.0), board: vec![vec![Square::None; 3]; 3], scores: (0, 0), winner: (Square::None, 0.0, 0.0, 0.0, 0.0), turn: X, line_color: Color::White, show_selector: true }
     }
 
     pub fn hit(&mut self) {
@@ -133,10 +134,12 @@ impl Game {
                 let mut top_y = selected_y;
 
                 let mut fail = false;
+                let mut count = 1;
                 while base_x-relative_x < board_size && base_x-relative_x >= 0.0 && base_y-relative_y < board_size && base_y-relative_y >= 0.0 {
                     if self.board[(base_x-relative_x) as usize][(base_y-relative_y) as usize] == self.turn {
                         base_x -= relative_x;
                         base_y -= relative_y;
+                        count += 1;
                     } else {
                         fail = true;
                         break;
@@ -148,12 +151,13 @@ impl Game {
                     if self.board[(top_x+relative_x) as usize][(top_y+relative_y) as usize] == self.turn {
                         top_x += relative_x;
                         top_y += relative_y;
+                        count += 1;
                     } else {
                         fail = true;
                         break;
                     }
                 }
-                if fail {continue}
+                if fail || count as f64 != board_size {continue}
                 if self.turn == X {
                     self.scores.0 += 1;
                 } else {
@@ -182,7 +186,7 @@ impl Game {
             }
             _ => ()
         }
-        self.selected = (1.0, 1.0);
+        self.selected = ((self.board.len()/2) as f64, (self.board.len()/2) as f64);
 
         if self.winner.0 == Square::None {
             let mut cancel = true;
@@ -199,11 +203,18 @@ impl Game {
     }
 
     pub fn rematch(&mut self) {
-        self.board = vec![vec![Square::None; 3]; 3];
+        self.board = vec![vec![Square::None; self.board.len()]; self.board.len()];
         self.winner = (Square::None, 0.0, 0.0, 0.0, 0.0);
         self.turn = X;
         self.show_selector = true;
-        self.selected = (1.0, 1.0);
+        self.selected = ((self.board.len()/2) as f64, (self.board.len()/2) as f64);
+    }
+
+    pub fn set_size(&mut self, num: usize) {
+        if num > 2 {
+            self.selected = ((num/2) as f64, (num/2) as f64);
+            self.board = vec![vec![Square::None; num]; num]
+        }
     }
 }
 

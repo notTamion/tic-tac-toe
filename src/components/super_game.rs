@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use ratatui::crossterm::event::KeyCode::Char;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -10,7 +9,7 @@ use crate::components::game::{Game, Square};
 
 pub struct SuperGame {
     pub managing_game: Game,
-    pub games: [[Game; 3]; 3],
+    pub games: Vec<Vec<Game>>,
     pub selecting_game: bool,
 }
 
@@ -18,19 +17,16 @@ pub struct SuperGame {
 impl Component for SuperGame {
     async fn handle_key_event(&mut self, key_event: KeyEvent) -> color_eyre::Result<Action> {
         if self.selecting_game {
-            match key_event.code {
-                Char('k') | KeyCode::Up => self.managing_game.selected.1 = (self.managing_game.selected.1 + 1.0).min(2.0),
-                Char('j') | KeyCode::Down => self.managing_game.selected.1 = (self.managing_game.selected.1 - 1.0).max(0.0),
-                Char('l') | KeyCode::Right => self.managing_game.selected.0 = (self.managing_game.selected.0 + 1.0).min(2.0),
-                Char('h') | KeyCode::Left => self.managing_game.selected.0 = (self.managing_game.selected.0 - 1.0).max(0.0),
-                KeyCode::Enter => {
+            if key_event.code == KeyCode::Enter {
+                let game = &mut self.games[self.managing_game.selected.0 as usize][self.managing_game.selected.1 as usize];
+                if game.winner.0 == Square::None {
                     self.selecting_game = false;
                     self.managing_game.show_selector = false;
-                    let game = &mut self.games[self.managing_game.selected.0 as usize][self.managing_game.selected.1 as usize];
                     game.show_selector = true;
                     game.turn = self.managing_game.turn;
                 }
-                _ => ()
+            } else {
+                self.managing_game.handle_key_event(key_event).await?;
             }
         } else {
             let game = &mut self.games[self.managing_game.selected.0 as usize][self.managing_game.selected.1 as usize];
@@ -58,43 +54,21 @@ impl Component for SuperGame {
     }
 
     fn render(&mut self, frame: &mut Frame, area: Rect) {
-        let games_columns = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![
-                Constraint::Fill(1),
-                Constraint::Fill(1),
-                Constraint::Fill(1),
-            ])
+        let mut game_areas: Vec<Vec<Rect>> = Vec::with_capacity(self.games.len());
+        let columns = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Fill(1); self.games.len()])
             .spacing(2)
             .split(area);
-        let games_rows1 = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![
-                Constraint::Fill(1),
-                Constraint::Fill(1),
-                Constraint::Fill(1),
-            ])
-            .spacing(2)
-            .split(games_columns[0]);
-        let games_rows2 = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![
-                Constraint::Fill(1),
-                Constraint::Fill(1),
-                Constraint::Fill(1),
-            ])
-            .spacing(2)
-            .split(games_columns[1]);
-        let games_rows3 = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![
-                Constraint::Fill(1),
-                Constraint::Fill(1),
-                Constraint::Fill(1),
-            ])
-            .spacing(2)
-            .split(games_columns[2]);
-        let game_areas:[[Rect; 3]; 3] = [[games_rows1[0], games_rows2[0], games_rows3[0]], [games_rows1[1], games_rows2[1], games_rows3[1]], [games_rows1[2], games_rows2[2], games_rows3[2]]];
+        for column in 0..columns.len() {
+            let mut rows =Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(vec![Constraint::Fill(1); self.games.len()])
+                .spacing(2)
+                .split(columns[column]).to_vec();
+            rows.reverse();
+            game_areas.push(rows);
+        }
         for x in 0..self.games.len() {
             for y in 0..self.games.len() {
                 self.games[x][y].render(frame, game_areas[x][y]);
@@ -108,7 +82,7 @@ impl SuperGame {
     pub fn new() -> Self {
         let mut managing_game = Game::new();
         managing_game.line_color = Color::Yellow;
-        let mut games = [[Game::new(), Game::new(), Game::new()], [Game::new(), Game::new(), Game::new()], [Game::new(), Game::new(), Game::new()]];
+        let mut games = vec![vec![Game::new(); 3]; 3];
         for x in 0..games.len() {
             for y in 0..games.len() {
                 games[x][y].show_selector = false;
@@ -123,14 +97,30 @@ impl SuperGame {
     }
 
     pub fn rematch(&mut self) {
-        let mut games = [[Game::new(), Game::new(), Game::new()], [Game::new(), Game::new(), Game::new()], [Game::new(), Game::new(), Game::new()]];
+        let mut games = vec![vec![Game::new(); self.games.len()]; self.games.len()];
         for x in 0..games.len() {
             for y in 0..games.len() {
                 games[x][y].show_selector = false;
+                games[x][y].set_size(self.games.len());
             }
         }
         self.games = games;
         self.managing_game.rematch();
         self.selecting_game = true;
+    }
+
+    pub fn set_size(&mut self, num: usize) {
+        if num > 2 {
+            self.managing_game.selected = ((num / 2) as f64, (num / 2) as f64);
+            self.managing_game.board = vec![vec![Square::None; num]; num];
+            let mut games = vec![vec![Game::new(); num]; num];
+            for x in 0..games.len() {
+                for y in 0..games.len() {
+                    games[x][y].show_selector = false;
+                    games[x][y].set_size(num);
+                }
+            }
+            self.games = games;
+        }
     }
 }

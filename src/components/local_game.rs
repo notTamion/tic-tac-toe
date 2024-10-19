@@ -17,6 +17,7 @@ pub struct LocalGame {
     game: Game,
     menu_state: ListState,
     has_menu_open: bool,
+    in_setup: bool,
 }
 
 #[async_trait]
@@ -26,7 +27,17 @@ impl Component for LocalGame {
             return Ok(Action::None);
         }
 
-        if self.has_menu_open {
+        if self.in_setup {
+            match key_event.code {
+                KeyCode::Enter => {
+                    self.in_setup = false;
+                    self.game.show_selector = true;
+                }
+                Char('j') | KeyCode::Down => self.game.set_size(self.game.board.len() - 1),
+                Char('k') | KeyCode::Up => self.game.set_size(self.game.board.len() + 1),
+                _ => {}
+            }
+        } else if self.has_menu_open {
             match key_event.code {
                 KeyCode::Esc => {
                     self.has_menu_open = false;
@@ -124,17 +135,33 @@ impl Component for LocalGame {
                     Constraint::Fill(1)]).split(layout[3])[1]);
             frame.render_widget(Clear::default(), menu_layout[1]);
             frame.render_stateful_widget(List::new(["Resume", "Rematch", "Restart", "Menu", "Quit"]).highlight_style(Style::new().add_modifier(Modifier::REVERSED)), menu_layout[1], &mut self.menu_state);
+        } else if self.in_setup {
+            let layout = Layout::default().direction(Direction::Horizontal)
+                .constraints(vec![
+                    Constraint::Fill(1),
+                    Constraint::Length(16),
+                    Constraint::Fill(1)]
+                ).split(Layout::default().direction(Direction::Vertical)
+                .constraints(vec![
+                    Constraint::Fill(1),
+                    Constraint::Length(3),
+                    Constraint::Fill(1)]).split(layout[3])[1]);
+            frame.render_widget(Clear::default(), layout[1]);
+            frame.render_widget(Paragraph::new("Select Game Size\nusing arrow keys\nand hit Enter").centered(), layout[1]);
         }
     }
 }
 
 impl LocalGame {
     pub fn new() -> Self {
-        LocalGame { game: Game::new(), has_menu_open: false, menu_state: ListState::default().with_selected(Some(0)) }
+        let mut game = Game::new();
+        game.show_selector = false;
+        LocalGame { game, has_menu_open: false, menu_state: ListState::default().with_selected(Some(0)), in_setup: true }
     }
 
     fn reset_menu(&mut self) {
         self.has_menu_open = false;
         self.menu_state.select(Some(0));
     }
+
 }
